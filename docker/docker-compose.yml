@@ -1,0 +1,14 @@
+version: '1'
+services:
+    go-pddl-app:
+        image: ${DOCKER_IMAGE}:${PROJECT_VERSION}.dev
+        build: 
+            context: ..
+            dockerfile: docker/dev/dockerfile
+            cache_from:
+                - ${DOCKER_IMAGE}:${PROJECT_VERSION}.dev
+            args: 
+                - GOPROXY=$GOPROXY
+                - GO_WORK_DIR=/go/src/github.com/guilyx/go-pddl
+        environment:
+            - ENV
