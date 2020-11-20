@@ -11,3 +11,19 @@ type Parser struct {
 	Actions      common.StringSlice
 	Predicates   common.StringMap
 }
+
+func (p *Parser) LoadDomain(filename string) (string, error) {
+	s, err := common.LoadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	return s, nil
+}
+
+func (p *Parser) LoadProblem(filename string) (string, error) {
+	s, err := common.LoadFile(filename)
+	if err != nil {
+		return "", err
+	}
+	return s, nil
+}
