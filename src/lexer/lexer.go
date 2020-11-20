@@ -246,7 +246,11 @@ func (l *Lexer) GetNumberToken() (*ScannedToken, error) {
 	l.Accepts(".")
 	l.AcceptsSequence(digits)
 	
-	if ok, err := l.Accepts("eE"); ok {
+	ok, err := l.Accepts("eE")
+	if err != nil {
+		return nil, fmt.Errorf("Can't get number from lexer: %v", err)
+	}
+	if ok {
 		l.Accepts("-")
 		l.AcceptsSequence(digits)
 	}
@@ -270,6 +274,7 @@ func (l *Lexer) GetCommentToken() error {
 	if err != nil {
 		return fmt.Errorf("Can't get comment from lexer: %v", err)
 	}
+	return nil
 }
 
 func (l *Lexer) ScanToken() (*ScannedToken, error) {
