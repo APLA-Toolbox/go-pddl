@@ -3,6 +3,7 @@ package lexer
 import (
 	"fmt"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -200,6 +201,147 @@ func (l *Lexer) CreateToken(t Token) (*ScannedToken, error) {
 	return tk, nil
 }
 
-func (l *Lexer) Error(format string, args ...interface{}) *ScannedToken {
+func (l *Lexer) TokenError(format string, args ...interface{}) (*ScannedToken, error) {
+	if l == nil {
+		return nil, fmt.Errorf("Can't generate token error from lexer: lexer is nil")
+	}
+	return &ScannedToken{
+		Type: TOKEN_ERROR, 
+		Text: fmt.Sprintf(format, args...),	
+	}, nil
+}
+
+func (l *Lexer) GetNameToken(t Token) (*ScannedToken, error) {
+	if l == nil {
+		return nil, fmt.Errorf("Can't get name from lexer: lexer is nil")
+	}
+	r, err := l.Next()
+	if err != nil {
+		return nil, fmt.Errorf("Can't get name from lexer: %v", err)
+	}
+	for unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' {
+		r, err = l.Next()
+		if err != nil {
+			return nil, fmt.Errorf("Can't get name from lexer: %v", err)
+		}
+	}
+	err = l.Backup()
+	if err != nil {
+		return nil, fmt.Errorf("Can't get name from lexer: %v", err)
+	}
+	tk, err := l.CreateToken(t)
+	if err != nil {
+		return nil, fmt.Errorf("Can't get name from lexer: %v", err)
+	}
+	return tk, nil
+}
+
+func (l *Lexer) GetNumberToken() (*ScannedToken, error) {
+	if l == nil {
+		return nil, fmt.Errorf("Can't get number from lexer: lexer is nil")
+	}
+	l.AcceptsSequence("-")
+	digits := "0123456789"
+	l.AcceptsSequence(digits)
+	l.Accepts(".")
+	l.AcceptsSequence(digits)
 	
+	if ok, err := l.Accepts("eE"); ok {
+		l.Accepts("-")
+		l.AcceptsSequence(digits)
+	}
+	tk, err := l.CreateToken(TOKEN_NUMBER)
+	if err != nil {
+		return nil, fmt.Errorf("Can't get number from lexer: %v", err)
+	}
+	return tk, nil
+}
+
+func (l *Lexer) GetCommentToken() error {
+	if l == nil {
+		return fmt.Errorf("Can't get comment from lexer: lexer is nil")
+	}
+	for t, err := l.Next(); t != '\n'; t, err = l.Next() {
+		if err != nil {
+			return fmt.Errorf("Can't get comment from lexer: %v", err)
+		}
+	}
+	err := l.Clear()
+	if err != nil {
+		return fmt.Errorf("Can't get comment from lexer: %v", err)
+	}
+}
+
+func (l *Lexer) ScanToken() (*ScannedToken, error) {
+	if l == nil {
+		return nil, fmt.Errorf("Can't generate token error from lexer: lexer is nil")
+	}
+	for {
+		r, err := l.Next()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to scan token: %v", err)
+		}
+		rp, err := l.Peek()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to scan token: %v", err)
+		}
+		if r == '-' && (unicode.IsDigit(rp) || rp == '-') {
+			tk, err := l.GetNumberToken()
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, nil
+		}
+		if rType, ok := RuneTokens[r]; ok {
+			tk, err := l.CreateToken(rType)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, nil
+		}
+		switch {
+		case r == EOF:
+			tk, err := l.CreateToken(EOF)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, nil
+		case unicode.IsSpace(r):
+			err = l.Clear()
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+		case r == ';':
+			err = l.GetCommentToken()
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+		case r == '?': 
+			tk, err := l.GetNameToken(TOKEN_VARIABLE_NAME)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, nil
+		case r == ':':
+			tk, err := l.GetNameToken(TOKEN_CATEGORY_NAME) 
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, nil
+		case unicode.IsLetter(r):
+			tk, err := l.GetNameToken(TOKEN_NAME)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, nil
+		case unicode.IsDigit(r):
+			tk, err := l.GetNumberToken()
+			if err != nil {
+				return nil, fmt.Errorf("Failed to scan token: %v", err)
+			}
+			return tk, err
+		default:
+			return l.TokenError("Unhandle token in PDDL: %c", r)
+		}
+	}
 }
