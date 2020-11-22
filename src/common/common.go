@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 )
@@ -32,12 +31,4 @@ func LoadFile(filename string) (string, error) {
 		return "", err
 	}
 	return string(data), nil
-}
-
-type Domain struct {
-
-}
-
-type Problem struct {
-	
 }
