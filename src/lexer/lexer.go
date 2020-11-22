@@ -65,11 +65,8 @@ func InitializeTokens() {
 	RuneTokens['='] = TOKEN_EQUAL
 }
 
-func (t *Token) ToString() (string, error) {
-	if t == nil {
-		return "", fmt.Errorf("Failed to convert token to string: token is nil")
-	}
-	return TokenNames[*t], nil
+func (t Token) ToString() (string, error) {
+	return TokenNames[t], nil
 }
 
 func NewLexer(name string, text string) (*Lexer, error) {

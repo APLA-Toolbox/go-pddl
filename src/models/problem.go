@@ -5,6 +5,6 @@ type Problem struct {
 	Domain            *Name
 	Requirements      []*Name
 	Objects           []*TypedEntry
-	InitialConditions []*Formula
-	Goal              *Formula
+	InitialConditions []Formula
+	Goal              Formula
 }

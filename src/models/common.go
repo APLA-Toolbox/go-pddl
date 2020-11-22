@@ -2,6 +2,25 @@ package models
 
 import "fmt"
 
+var (
+	// supportedReqs maps the supported
+	// requirement names to true, and
+	// everything else to false.
+	supportedReqs = map[string]bool{
+		":adl":                       true,
+		":strips":                    true,
+		":typing":                    true,
+		":negative-preconditions":    true,
+		":disjunctive-preconditions": true,
+		":equality":                  true,
+		":quantified-preconditions":  true,
+		":universal-preconditions":   true,
+		":existential-preconditions": true,
+		":conditional-effects":       true,
+		":action-costs":              true,
+	}
+)
+
 type (
 	defs struct {
 		reqs   map[string]bool
@@ -56,7 +75,7 @@ type FunctionInit struct {
 
 type Term struct {
 	Name       *Name
-	IsConstant bool
+	IsVariable bool
 	Definition *TypedEntry
 }
 
@@ -65,4 +84,11 @@ type Function struct {
 	Id     int
 	Types  []*TypeName
 	Params []*TypedEntry
+}
+
+func Indent(n int) (s string) {
+	for i := 0; i < n; i++ {
+		s += "\t"
+	}
+	return
 }

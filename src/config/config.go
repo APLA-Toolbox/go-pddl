@@ -12,6 +12,7 @@ type Config struct {
 	Test    bool   `envconfig:"test" default:"false"`
 	Domain  string `envconfig:"domain" default:"./data/domain.pddl"`
 	Problem string `envconfig:"problem" default:"./data/problem.pddl"`
+	MaxPeek int    `envconfig:"max_peek" default:"2"`
 }
 
 func NewConfig() (*Config, error) {

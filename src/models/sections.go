@@ -11,7 +11,6 @@ type Predicate struct {
 type Action struct {
 	Name         *Name
 	Params       []*TypedEntry
-	Precondition *Formula
-	Effect       *Formula
+	Precondition Formula
+	Effect       Formula
 }
-

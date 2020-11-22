@@ -5,7 +5,7 @@ type Domain struct {
 	Requirements []*Name
 	Types        []*Type
 	Constants    []*TypedEntry
-	Predicate    []*Predicate
+	Predicates   []*Predicate
 	Functions    []*Function
 	Actions      []*Action
 }
