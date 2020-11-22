@@ -1,13 +1,11 @@
 package parser
 
-import (
-	"github.com/guilyx/go-pddl/src/common"
-)
+import "github.com/guilyx/go-pddl/src/config"
 
 type Parser struct {
-	DomainName   string
-	Requirements common.StringSlice
-	Types        common.StringSlice
-	Actions      common.StringSlice
-	Predicates   common.StringMap
+	Configuration *config.Config
+}
+
+func NewParser(config *config.Config) (*Parser, error) {
+	return &Parser{Configuration: config}, nil
 }

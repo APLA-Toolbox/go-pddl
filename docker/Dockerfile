@@ -1,11 +1,18 @@
+
 FROM golang:1.15-alpine
 
-ARG GO_WORK_DIR
-ARG GOPROXY
-
-EXPOSE 8000
-
 ENV TZ Europe/Paris
+
+LABEL maintainer="Erwin Lejeune <erwin.lejeune15@gmail.com>"
+
+RUN apk add --no-cache ca-certificates \
+    dpkg \
+    gcc \
+    git \
+    musl-dev \
+    bash \
+    tzdata
+
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -16,11 +23,28 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin"
 
 ENV GO111MODULE on
 
-COPY go.mod go.sum ./
-COPY docker/dev/root/* /.
+ENV DELVE_VERSION v1.5.0
+ENV AIR_VERSION b538c70423fb3590435c003dda15bf6a2f61187c
+ENV MOCK_VERSION v1.4.3
+
+RUN go get github.com/golang/mock/gomock@$MOCK_VERSION && \
+    go get github.com/golang/mock/mockgen@$MOCK_VERSION && \
+    go get github.com/go-delve/delve/cmd/dlv@$DELVE_VERSION && \
+    go get github.com/cosmtrek/air@$AIR_VERSION
+
+WORKDIR /go/src/github.com/guilyx/go-pddl
+ARG LOG_DIR=./logs
+RUN mkdir -p ${LOG_DIR}
+ENV LOG_FILE_LOCATION=${LOG_DIR}/app.log
+
+COPY go.mod ./
+COPY go.sum ./
+COPY docker/entrypoint.sh /.
+
 RUN chmod +x /entrypoint.sh
 
-RUN \ 
-    apk add --no-cache bash git openssh
+EXPOSE 8080
 
-CMD ["go", "run", "main.go"]
+VOLUME [${LOG_DIR}]
+
+ENTRYPOINT ["/entrypoint.sh"]

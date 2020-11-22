@@ -1,2 +1,9 @@
 vendor/*
 .vscode/*
+.env
+bin/*
+logs/*
+docker/volumes/*
+data/*
+!data/.gitkeep
+src/tmp/*
