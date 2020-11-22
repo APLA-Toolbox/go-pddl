@@ -273,6 +273,86 @@ func (p *ParserToolbox) parseName(tokenType lexer.Token) (*models.Name, *models.
 	}, nil
 }
 
+func (p *ParserToolbox) parseFunctionTypedList() (funs []*models.Function) {
+	for {
+		var fs []*models.Function
+		pk, _ := p.Peek()
+		for pk.Type == lexer.TOKEN_OPEN {
+			fs = append(fs, p.parseAtomicFunc())
+			pk, _ = p.Peek()
+		}
+		if len(fs) == 0 {
+			break
+		}
+		typ := p.parseFunctionType()
+		for i := range fs {
+			fs[i].Types = typ
+		}
+		funs = append(funs, fs...)
+	}
+	return
+}
+
+func (p *ParserToolbox) parseFunctionType() (typ []*models.TypeName) {
+	ok, _ := p.Accepts("-")
+	if !ok {
+		return
+	}
+	ls, _ := p.Locate()
+	n, _ := p.ExpectsText("number")
+	return []*models.TypeName{
+		&models.TypeName{
+			Name: &models.Name{
+				Location: ls,
+				Name:     n.Text,
+			},
+		}}
+}
+
+func (p *ParserToolbox) parseActionDef() (act *models.Action) {
+	p.Expects("(", ":action")
+	defer p.Expects(")")
+	act.Name, _ = p.parseName(lexer.TOKEN_VARIABLE_NAME)
+	act.Params = p.parseActionParams()
+	ok, _ := p.Accepts(":precondition")
+	if ok {
+		ok2, _ := p.Accepts("(", ")")
+		if !ok2 {
+			act.Precondition = parsePreGd(p)
+		}
+	}
+	ok, _ = p.Accepts(":effect")
+	if ok {
+		ok2, _ := p.Accepts("(", ")")
+		if !ok2 {
+			act.Effect, _ = p.parseEffect()
+		}
+	}
+	return
+}
+
+func (p *ParserToolbox) parseActionParams() (parms []*models.TypedEntry) {
+	p.Expects(":parameters", "(")
+	defer p.Expects(")")
+	te, _ := p.parseTypedListString(lexer.TOKEN_VARIABLE_NAME)
+	return te
+}
+
+func parsePreGd(p *ParserToolbox) models.Formula {
+	ok, _ := p.Accepts("(", "and")
+	ok2, _ := p.Accepts("(", "forall")
+
+	switch {
+	case ok:
+		f, _ := p.parseAndGd(parsePreGd)
+		return f
+	case ok2:
+		f := p.parseForAllGd(parsePreGd)
+		return f
+	}
+	return parsePrefGd(p)
+}
+
 func (p *ParserToolbox) parseDomainName() (*models.Name, *models.PddlError) {
 	err := p.Expects("(", "domain")
 	if err != nil {
@@ -340,6 +420,25 @@ func (p *ParserToolbox) parseTypedListString(tokenType lexer.Token) ([]*models.T
 		}
 	}
 	return typedList, nil
+}
+
+func (p *ParserToolbox) parseFuncsDef() []*models.Function {
+	ok, _ := p.Accepts("(", ":functions")
+	if ok {
+		defer p.Expects(")")
+		return p.parseFunctionTypedList()
+	}
+	return nil
+}
+
+func (p *ParserToolbox) parseActionsDef() (acts []*models.Action) {
+	tk, _ := p.Peek()
+	for tk.Type == lexer.TOKEN_OPEN {
+		act := p.parseActionDef()
+		acts = append(acts, act)
+		tk, _ = p.Peek()
+	}
+	return
 }
 
 func (p *ParserToolbox) parseType() ([]*models.TypeName, *models.PddlError) {
@@ -471,6 +570,17 @@ func (p *ParserToolbox) parseAtomicPred() (*models.Predicate, *models.PddlError)
 	}, nil
 }
 
+func (p *ParserToolbox) parseAtomicFunc() *models.Function {
+	p.Expects("(")
+	defer p.Expects(")")
+	n, _ := p.parseName(lexer.TOKEN_NAME)
+	ps, _ := p.parseTypedListString(lexer.TOKEN_VARIABLE_NAME)
+	return &models.Function{
+		Name:   n,
+		Params: ps,
+	}
+}
+
 func (p *ParserToolbox) parseFunctioninit() (*models.FunctionInit, *models.PddlError) {
 	fi := &models.FunctionInit{}
 	ok, err := p.Accepts("(")
@@ -530,10 +640,7 @@ func (p *ParserToolbox) parseForAllEffect(nestedFormula func(*ParserToolbox) (mo
 	if err != nil {
 		return nil, p.NewPddlError("Failed to parse for all effect: %v", err.Error)
 	}
-	qv, err := p.parseQuantificationVariables()
-	if err != nil {
-		return nil, p.NewPddlError("Failed to parse for all effect: %v", err.Error)
-	}
+	qv := p.parseQuantVariables()
 	f, err2 := nestedFormula(p)
 	if err2 != nil {
 		return nil, p.NewPddlError("Failed to parse for all effect: %v", err.Error)
@@ -551,54 +658,199 @@ func (p *ParserToolbox) parseForAllEffect(nestedFormula func(*ParserToolbox) (mo
 	}, nil
 }
 
-func (p *ParserToolbox) parseWhenEffect(nestedFormula func(*Parser) (models.Formula, *models.PddlError)) (models.Formula, *models.PddlError) {
+func (p *ParserToolbox) parseAndGd(nested func(*ParserToolbox) models.Formula) (models.Formula, *models.PddlError) {
+	defer p.Expects(")")
+	ps, err := p.parseFormulaStar(nested)
+	if err != nil {
+		return nil, p.NewPddlError("Failed to parse and grounded: %v", err.Error)
+	}
+	l, err2 := p.Locate()
+	if err2 != nil {
+		return nil, p.NewPddlError("Failed to parse and grounded: %v", err.Error)
+	}
+	return &models.AndNode{
+		MultiNode: &models.MultiNode{
+			Node: models.Node{
+				Location: l,
+			},
+			Formula: ps,
+		},
+	}, nil
+}
+
+func (p *ParserToolbox) parseFormulaStar(nested func(*ParserToolbox) models.Formula) (fs []models.Formula, err *models.PddlError) {
+	tk, err := p.Peek()
+	if err != nil {
+		return nil, p.NewPddlError("Failed to parse formula star")
+	}
+	for tk.Type == lexer.TOKEN_OPEN {
+		fs = append(fs, nested(p))
+	}
+	return
+}
+
+func (p *ParserToolbox) parseWhenEffect(nestedFormula func(*ParserToolbox) models.Formula) (models.Formula, *models.PddlError) {
 	defer p.Expects(")")
 	loc, err := p.Locate()
 	if err != nil {
 		return nil, p.NewPddlError("Failed to parse when effect: %v", err.Error)
 	}
-	cond, err := p.parseGd()
-	if err != nil {
-		return nil, p.NewPddlError("Failed to parse when effect: %v", err.Error)
-	}
-	f, err := nestedFormula(p)
-	if err != nil {
-		return nil, p.NewPddlError("Failed to parse when effect: %v", err.Error)
-	}
+	cond := parseGd(p)
 	return &models.WhenNode{
 		Condition: cond,
 		UnaryNode: &models.UnaryNode{
 			Node: &models.Node{
 				Location: loc,
 			},
-			Formula: f,
+			Formula: nestedFormula(p),
 		},
 	}, nil
 }
 
-func (p *ParserToolbox) parsePEffect() (models.Formula, *models.PddlError) {
+func parsePrefGd(p *ParserToolbox) models.Formula {
+	return parseGd(p)
+}
+
+func parseOrGd(p *ParserToolbox, nested func(*ParserToolbox) models.Formula) models.Formula {
+	defer p.Expects(")")
+	f, _ := p.parseFormulaStar(nested)
+	l, _ := p.Locate()
+	return &models.OrNode{
+		&models.MultiNode{
+			Node: models.Node{
+				Location: l,
+			},
+			Formula: f,
+		},
+	}
+}
+
+func (p *ParserToolbox) parseNotGd() models.Formula {
+	defer p.Expects(")")
+	l, _ := p.Locate()
+	return &models.NotNode{
+		&models.UnaryNode{
+			Node: &models.Node{
+				Location: l,
+			},
+			Formula: parseGd(p),
+		},
+	}
+}
+
+func (p *ParserToolbox) parseImplyGd() models.Formula {
+	defer p.Expects(")")
+	l, _ := p.Locate()
+	return &models.ImplyNode{
+		BinaryNode: &models.BinaryNode{
+			Node: models.Node{
+				Location: l,
+			},
+			Left:  parseGd(p),
+			Right: parseGd(p),
+		},
+	}
+}
+
+func (p *ParserToolbox) parseForAllGd(nested func(*ParserToolbox) models.Formula) models.Formula {
+	defer p.Expects(")")
+	l, _ := p.Locate()
+	return &models.ForAllNode{
+		QuantNode: &models.QuantNode{
+			Variables: p.parseQuantVariables(),
+			UnaryNode: &models.UnaryNode{
+				Node: &models.Node{
+					Location: l,
+				},
+				Formula: nested(p),
+			},
+		},
+	}
+}
+
+func (p *ParserToolbox) parseQuantVariables() []*models.TypedEntry {
+	p.Expects("(")
+	defer p.Expects(")")
+	te, _ := p.parseTypedListString(lexer.TOKEN_VARIABLE_NAME)
+	return te
+}
+
+func (p *ParserToolbox) parseExistsGd(nested func(*ParserToolbox) models.Formula) models.Formula {
+	defer p.Expects(")")
+	loc, _ := p.Locate()
+	return &models.ExistsNode{
+		QuantNode: &models.QuantNode{
+			Variables: p.parseQuantVariables(),
+			UnaryNode: &models.UnaryNode{
+				Node: &models.Node{
+					Location: loc,
+				},
+				Formula: nested(p),
+			},
+		},
+	}
+}
+
+func parseGd(p *ParserToolbox) models.Formula {
+	ok, _ := p.Accepts("(", "and")
+	ok2, _ := p.Accepts("(", "or")
+	ok3, _ := p.Accepts("(", "not")
+	ok4, _ := p.Accepts("(", "imply")
+	ok5, _ := p.Accepts("(", "exists")
+	ok6, _ := p.Accepts("(", "forall")
+
+	switch {
+	case ok:
+		x, _ := p.parseAndGd(parseGd)
+		return x
+	case ok2:
+		x := parseOrGd(p, parseGd)
+		return x
+	case ok3:
+		x := p.parseNotGd()
+		if lit, ok := x.(*models.LiteralNode); ok {
+			lit.Negative = !lit.Negative
+			return lit
+		}
+		return x
+	case ok4:
+		x := p.parseImplyGd()
+		return x
+	case ok5:
+		x := p.parseExistsGd(parseGd)
+		return x
+	case ok6:
+		x := p.parseForAllGd(parseGd)
+		return x
+	}
+
+	x, _ := p.parseLitteral(false)
+	return x
+}
+
+func parsePEffect(p *ParserToolbox) models.Formula {
 	tk, err := p.PeekNth(2)
 	if err != nil {
-		return nil, p.NewPddlError("Failed to parse P effect: %v", err.Error)
+		return nil
 	}
 	if _, ok := models.AssignOps[tk.Text]; ok {
 		tk2, err := p.Peek()
 		if err != nil {
-			return nil, p.NewPddlError("Failed to parse P effect: %v", err.Error)
+			return nil
 		}
 		if tk2.Type == lexer.TOKEN_OPEN {
 			n, err := p.parseAssign()
 			if err != nil {
-				return nil, p.NewPddlError("Failed to parse P effect: %v", err.Error)
+				return nil
 			}
-			return n, nil
+			return n
 		}
 	}
 	ln, err := p.parseLitteral(true)
 	if err != nil {
-		return nil, p.NewPddlError("Failed to parse P effect: %v", err.Error)
+		return nil
 	}
-	return ln, nil
+	return ln
 }
 
 func (p *ParserToolbox) parseLitteral(effect bool) (*models.LiteralNode, *models.PddlError) {
@@ -686,7 +938,7 @@ func (p *ParserToolbox) parseTerms() ([]*models.Term, *models.PddlError) {
 func (p *ParserToolbox) parseEffect() (models.Formula, *models.PddlError) {
 	ok, err := p.Accepts("(", "and")
 	if ok {
-		f, err := p.parseAndEffect(p.parseConditionalEffect)
+		f, err := p.parseAndEffect(parseConditionalEffect)
 		if err != nil {
 			return nil, p.NewPddlError("Failed to parse effect: %v", err.Error)
 		}
@@ -695,21 +947,18 @@ func (p *ParserToolbox) parseEffect() (models.Formula, *models.PddlError) {
 	if err != nil {
 		return nil, p.NewPddlError("Failed to parse effect: %v", err.Error)
 	}
-	f, err := p.parseConditionalEffect()
-	if err != nil {
-		return nil, p.NewPddlError("Failed to parse effect: %v", err.Error)
-	}
+	f := parseConditionalEffect(p)
 	return f, nil
 }
 
-func (p *ParserToolbox) parseAndEffect(nestedFormula func() (models.Formula, *models.PddlError)) (models.Formula, *models.PddlError) {
+func (p *ParserToolbox) parseAndEffect(nestedFormula func(p *ParserToolbox) models.Formula) (models.Formula, *models.PddlError) {
 	defer p.Expects(")")
-	fs, err := p.parseFormulaStar(p, nestedFormula)
+	fs, err := p.parseFormulaStar(nestedFormula)
 	if err != nil {
 		return nil, p.NewPddlError("Failed to parse and effect: %v", err.Error)
 	}
-	l, err := p.Locate()
-	if err != nil {
+	l, err2 := p.Locate()
+	if err2 != nil {
 		return nil, p.NewPddlError("Failed to parse and effect: %v", err.Error)
 	}
 	return &models.AndNode{
@@ -722,21 +971,82 @@ func (p *ParserToolbox) parseAndEffect(nestedFormula func() (models.Formula, *mo
 	}, nil
 }
 
-func (p *ParserToolbox) parseConditionalEffect() (models.Formula, *models.PddlError) {
+func parseConditionalEffect(p *ParserToolbox) models.Formula {
 	ok, err := p.Accepts("(", "and")
 	if err != nil {
-		return nil, p.NewPddlError("Failed to parse conditional effect: %v", err.Error)
+		return nil
 	}
 	if ok {
-		f, err := p.parseAndEffect(p.parsePEffect)
+		f, err := p.parseAndEffect(parsePEffect)
 		if err != nil {
-			return nil, p.NewPddlError("Failed to parse conditional effect: %v", err.Error)
+			return nil
 		}
-		return f, nil
+		return f
 	}
-	f, err := p.parsePEffect()
-	if err != nil {
-		return nil, p.NewPddlError("Failed to parse conditionnal effect: %v", err.Error)
+	f := parsePEffect(p)
+	return f
+}
+
+func (p *ParserToolbox) parseProbName() *models.Name {
+	p.Expects("(", "problem")
+	defer p.Expects(")")
+	tk, _ := p.parseName(lexer.TOKEN_NAME)
+	return tk
+}
+
+func (p *ParserToolbox) parseProbDomain() *models.Name {
+	p.Expects("(", ":domain")
+	defer p.Expects(")")
+	tk, _ := p.parseName(lexer.TOKEN_NAME)
+	return tk
+}
+
+func (p *ParserToolbox) parseObjsDecl() []*models.TypedEntry {
+	if ok, _ := p.Accepts("(", ":objects"); ok {
+		defer p.Expects(")")
+		te, _ := p.parseTypedListString(lexer.TOKEN_NAME)
+		return te
 	}
-	return f, nil
+	return nil
+}
+
+func (p *ParserToolbox) parseInit() (els []models.Formula) {
+	p.Expects("(", ":init")
+	defer p.Expects(")")
+	tk, _ := p.Peek()
+	if tk.Type == lexer.TOKEN_OPEN {
+		els = append(els, p.parseInitEl())
+		tk, _ = p.Peek()
+	}
+	return
+}
+
+func (p *ParserToolbox) parseInitEl() models.Formula {
+	loc, _ := p.Locate()
+	at, _ := p.parseFunctioninit()
+	n, _ := p.ExpectsType(lexer.TOKEN_NAME)
+	if ok, _ := p.Accepts("(", "="); ok {
+		defer p.Expects(")")
+		return &models.AssignNode{
+			Node:     &models.Node{
+				Location: loc,
+			},
+			Operation: &models.Name{
+				Name: "=",
+				Location: loc,
+			},
+			AssignedTo: at,
+			IsInit: true,
+			IsNumber: true,
+			Number: n.Text,
+		}
+	}
+	ln, _ := p.parseLitteral(false)
+	return ln
+}
+
+func (p *ParserToolbox) parseGoal() models.Formula {
+	p.Expects("(", ":goal")
+	defer p.Expects(")")
+	return parsePreGd(p)
 }

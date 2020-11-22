@@ -21,5 +21,11 @@ func NewConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to process env: %v", err)
 	}
+	if len(config.Problem) < 1 {
+		return nil, fmt.Errorf("Problem file isn't parse-able")
+	}
+	if len(config.Domain) < 1 {
+		return nil, fmt.Errorf("Domain file isn't parse-able")
+	}
 	return &config, nil
 }

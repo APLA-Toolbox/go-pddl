@@ -5,20 +5,6 @@ import (
 	"io"
 )
 
-// PrintDomain prints the domain in valid PDDL to a writer.
-func PrintDomain(w io.Writer, d Domain) {
-	fmt.Fprintf(w, "(define (domain %s)\n", d.Name.Name)
-	printReqsDef(w, d.Requirements)
-	printTypesDef(w, d.Types)
-	printConstsDef(w, ":constants", d.Constants)
-	printPredsDef(w, d.Predicates)
-	printFuncsDef(w, d.Functions)
-	for _, act := range d.Actions {
-		printAction(w, act)
-	}
-	fmt.Fprintln(w, ")")
-}
-
 func printReqsDef(w io.Writer, reqs []*Name) {
 	if len(reqs) == 0 {
 		return
@@ -116,26 +102,6 @@ func printAction(w io.Writer, act *Action) {
 		act.Effect.Print(w, Indent(3))
 	}
 	fmt.Fprintln(w, ")")
-}
-
-// PrintProblem prints the problem in valid PDDL to the given writer.
-func PrintProblem(w io.Writer, p *Problem) {
-	fmt.Fprintf(w, "(define (problem %s)\n%s(:domain %s)\n",
-		p.Name.Name, Indent(1), p.Domain.Name)
-	printReqsDef(w, p.Requirements)
-	printConstsDef(w, ":objects", p.Objects)
-
-	fmt.Fprintf(w, "%s(:init", Indent(1))
-	for _, f := range p.InitialConditions {
-		fmt.Fprint(w, "\n")
-		f.Print(w, Indent(2))
-	}
-	fmt.Fprint(w, ")\n")
-
-	fmt.Fprintf(w, "%s(:goal\n", Indent(1))
-	p.Goal.Print(w, Indent(2))
-
-	fmt.Fprintln(w, ")\n)")
 }
 
 // DeclGroup is a group of declarators along with their type.

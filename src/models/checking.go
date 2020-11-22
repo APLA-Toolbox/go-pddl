@@ -486,6 +486,10 @@ func (a *AndNode) Check(defs defs, errs *errors) {
 	fmt.Println("AndNodes check isn't implemented yet")
 }
 
+func (a *NotNode) Check(defs defs, errs *errors) {
+	fmt.Println("AndNodes check isn't implemented yet")
+}
+
 func (a *AssignNode) Check(defs defs, errs *errors) {
 	if !defs.reqs[":action-costs"] {
 		errs.badReq(a.Node.Location, a.Operation.Name, ":action-costs")
