@@ -9,5 +9,14 @@ services:
             - ./volumes/go/pkg:/go/pkg
         ports:
             - 8080
+            - 14001:2345 # Go DLV (debug)
         environment:
             - ENV=dev
+            - PROJECT_VERSION
+            - DOMAIN
+            - PROBLEM
+            - MAX_PEEK
+            - TEST
+            - DEBUG
+            - TEST_DEBUG_PACKAGE
+            - PRINT_PDDL
