@@ -327,7 +327,7 @@ func (p *ParserToolbox) parseActionDef() *models.Action {
 	if ok {
 		ok2, _ := p.Accepts("(", ")")
 		if !ok2 {
-			act.Effect, _ = p.parseEffect()
+			act.Effect, _ = parseEffect(p)
 		}
 	}
 	return act
@@ -433,14 +433,15 @@ func (p *ParserToolbox) parseFuncsDef() []*models.Function {
 	return nil
 }
 
-func (p *ParserToolbox) parseActionsDef() (acts []*models.Action) {
+func (p *ParserToolbox) parseActionsDef() ([]*models.Action) {
+	acts := []*models.Action{}
 	tk, _ := p.Peek()
 	for tk.Type == lexer.TOKEN_OPEN {
 		act := p.parseActionDef()
 		acts = append(acts, act)
 		tk, _ = p.Peek()
 	}
-	return
+	return acts
 }
 
 func (p *ParserToolbox) parseType() ([]*models.TypeName, *models.PddlError) {
@@ -658,6 +659,7 @@ func (p *ParserToolbox) parseForAllEffect(nestedFormula func(*ParserToolbox) (mo
 				Formula: f,
 			},
 		},
+		IsEffect: true,
 	}, nil
 }
 
@@ -686,8 +688,14 @@ func (p *ParserToolbox) parseFormulaStar(nested func(*ParserToolbox) models.Form
 	if err != nil {
 		return nil, p.NewPddlError("Failed to parse formula star")
 	}
-	for tk.Type == lexer.TOKEN_OPEN {
+	tkType := tk.Type
+	for tkType == lexer.TOKEN_OPEN {
 		fs = append(fs, nested(p))
+		tk, err := p.Peek()
+		if err != nil {
+			return nil, p.NewPddlError("Failed to parse formula star")
+		}
+		tkType = tk.Type
 	}
 	return
 }
@@ -941,7 +949,21 @@ func (p *ParserToolbox) parseTerms() ([]*models.Term, *models.PddlError) {
 	return terms, nil
 }
 
-func (p *ParserToolbox) parseEffect() (models.Formula, *models.PddlError) {
+func parseConditionalEffect(p *ParserToolbox) models.Formula {
+	ok, _ := p.Accepts("(", "forall")
+	ok2, _ := p.Accepts("(", "when") 
+	switch {
+	case ok:
+		f, _ := p.parseForAllEffect(parseEffect)
+		return f
+	case ok2:
+		f, _ := p.parseWhenEffect(parseAndOrPreEffect)
+		return f
+	}
+	return parsePEffect(p)
+}
+
+func parseEffect(p *ParserToolbox) (models.Formula, *models.PddlError){
 	ok, err := p.Accepts("(", "and")
 	if ok {
 		f, err := p.parseAndEffect(parseConditionalEffect)
@@ -977,7 +999,7 @@ func (p *ParserToolbox) parseAndEffect(nestedFormula func(p *ParserToolbox) mode
 	}, nil
 }
 
-func parseConditionalEffect(p *ParserToolbox) models.Formula {
+func parseAndOrPreEffect(p *ParserToolbox) models.Formula {
 	ok, err := p.Accepts("(", "and")
 	if err != nil {
 		return nil
