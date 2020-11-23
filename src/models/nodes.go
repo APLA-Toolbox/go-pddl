@@ -128,15 +128,15 @@ func (n *OrNode) Print(w io.Writer, prefix string) {
 
 func (n *NotNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(not\n", prefix)
-	n.Print(w, prefix+Indent(1))
+	n.UnaryNode.Formula.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
 }
 
 func (n *ImplyNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(imply\n", prefix)
-	n.Print(w, prefix+Indent(1))
+	n.BinaryNode.Left.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, "\n")
-	n.Print(w, prefix+Indent(1))
+	n.BinaryNode.Right.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
 }
 
@@ -152,15 +152,15 @@ func (n *ExistsNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(exists (", prefix)
 	printTypedNames(w, "", n.QuantNode.Variables)
 	fmt.Fprint(w, ")\n")
-	n.Print(w, prefix+Indent(1))
+	n.QuantNode.UnaryNode.Formula.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
 }
 
 func (n *WhenNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(when\n", prefix)
-	n.Print(w, prefix+Indent(1))
+	n.Condition.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, "\n")
-	n.Print(w, prefix+Indent(1))
+	n.UnaryNode.Formula.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
 }
 
