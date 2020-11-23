@@ -42,6 +42,7 @@ COPY go.sum ./
 COPY docker/entrypoint.sh /.
 
 RUN chmod +x /entrypoint.sh
+RUN chmod +x ./scripts/air.sh
 
 EXPOSE 8080
 
