@@ -98,9 +98,9 @@ func (lit *LiteralNode) Print(w io.Writer, prefix string) {
 		prefix = ""
 	}
 	fmt.Fprintf(w, "%s(", prefix)
-	fmt.Fprint(w, lit.Predicate)
+	fmt.Fprint(w, lit.Predicate.Name)
 	for _, t := range lit.Terms {
-		fmt.Fprintf(w, " %s", t.Name)
+		fmt.Fprintf(w, " %s", t.Name.Name)
 	}
 	fmt.Fprint(w, ")")
 	if lit.Negative {
@@ -144,7 +144,7 @@ func (n *ForAllNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(forall (", prefix)
 	printTypedNames(w, "", n.QuantNode.Variables)
 	fmt.Fprint(w, ")\n")
-	n.Print(w, prefix+Indent(1))
+	n.QuantNode.UnaryNode.Formula.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
 }
 

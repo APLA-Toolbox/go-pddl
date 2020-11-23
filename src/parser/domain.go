@@ -5,6 +5,18 @@ import (
 )
 
 func (p *Parser) ParseDomain() *models.PddlError {
+	err := p.DomainToolbox.Expects("(", "define")
+	if err != nil {
+		return p.DomainToolbox.NewPddlError("Failed to parse domain: %v", err.Error)
+	}
+	defer p.DomainToolbox.Expects(")")
+	tk, err := p.DomainToolbox.PeekNth(2)
+	if err != nil {
+		return p.DomainToolbox.NewPddlError("Failed to parse domain: %v", err.Error)
+	}
+	if tk.Text != "domain" {
+		return p.DomainToolbox.NewPddlError("Failed to parse domain: input file isn't a valid domain.")
+	}
 	name, err := p.DomainToolbox.parseDomainName()
 	if err != nil {
 		return p.DomainToolbox.NewPddlError("Failed to parse domain: %v", err.Error)
@@ -30,9 +42,6 @@ func (p *Parser) ParseDomain() *models.PddlError {
 		return p.DomainToolbox.NewPddlError("Failed to parse domain: %v", err.Error)
 	}
 	acts := p.DomainToolbox.parseActionsDef()
-	if err != nil {
-		return p.DomainToolbox.NewPddlError("Failed to parse domain: %v", err.Error)
-	}
 	d := &models.Domain{
 		Name:         name,
 		Actions:      acts,

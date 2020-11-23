@@ -12,6 +12,6 @@ echo TEST : "${TEST}"
 echo DEBUG : "${DEBUG}"
 echo TEST_DEBUG_PACKAGE : "${TEST_DEBUG_PACKAGE}"
 
-cd ./src
+source .env
 
 air 

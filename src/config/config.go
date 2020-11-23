@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	Env     string `envconfig:"env" default:"dev"`
-	Version string `envconfig:"project_version"`
-	Test    bool   `envconfig:"test" default:"false"`
-	Domain  string `envconfig:"domain" default:"./data/domain.pddl"`
-	Problem string `envconfig:"problem" default:"./data/problem.pddl"`
-	MaxPeek int    `envconfig:"max_peek" default:"2"`
+	Env       string `envconfig:"env" default:"dev"`
+	Version   string `envconfig:"project_version"`
+	Test      bool   `envconfig:"test" default:"false"`
+	Domain    string `envconfig:"domain" default:"/go/src/github.com/guilyx/go-pddl/data/domain.pddl"`
+	Problem   string `envconfig:"problem" default:"/go/src/github.com/guilyx/go-pddl/data/problem.pddl"`
+	MaxPeek   int    `envconfig:"max_peek" default:"2"`
+	PrintPddl bool   `envconfig:"print_pddl" default:"false"`
 }
 
 func NewConfig() (*Config, error) {

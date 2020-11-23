@@ -19,7 +19,7 @@ func Start() (*Pddl, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to instantiate configuration: %v", err)
 	}
-	fmt.Println("Starting go-pddl... (v" + conf.Version + ", started at " + time.Now().String())
+	fmt.Println("Starting go-pddl... (v " + conf.Version + ", started at " + time.Now().String())
 
 	// Parser Creation
 	parser := parser.NewParser()

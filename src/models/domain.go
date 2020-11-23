@@ -16,6 +16,9 @@ type Domain struct {
 }
 
 func (d *Domain) PrintDomain(w io.Writer) {
+	if d == nil {
+		panic("Domain is nil, can't print")
+	}
 	fmt.Fprintf(w, "(define (domain %s)\n", d.Name.Name)
 	printReqsDef(w, d.Requirements)
 	printTypesDef(w, d.Types)

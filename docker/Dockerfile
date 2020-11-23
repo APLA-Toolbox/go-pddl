@@ -33,7 +33,7 @@ RUN go get github.com/golang/mock/gomock@$MOCK_VERSION && \
     go get github.com/cosmtrek/air@$AIR_VERSION
 
 WORKDIR /go/src/github.com/guilyx/go-pddl
-ARG LOG_DIR=./logs
+ARG LOG_DIR=/go/src/github.com/guilyx/go-pddl/logs
 RUN mkdir -p ${LOG_DIR}
 ENV LOG_FILE_LOCATION=${LOG_DIR}/app.log
 

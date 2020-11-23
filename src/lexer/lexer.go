@@ -20,11 +20,11 @@ type LexerLocator struct {
 }
 
 type Lexer struct {
-	Name    string
-	Text    string
-	Start   int
+	Name           string
+	Text           string
+	Start          int
 	CurrentLocator *LexerLocator
-	Width   int
+	Width          int
 }
 
 const (
@@ -73,6 +73,7 @@ func NewLexer(name string, text string) (*Lexer, error) {
 	if name == "" || text == "" {
 		return nil, fmt.Errorf("Failed to build new lexer: name and text not specified")
 	}
+	InitializeTokens()
 	return &Lexer{
 		Name: name,
 		Text: text,
@@ -130,6 +131,10 @@ func (l *Lexer) Peek() (rune, error) {
 	if err != nil {
 		return rune(0), fmt.Errorf("Can't peek next rune: %v", err)
 	}
+	err = l.Backup()
+	if err != nil {
+		return rune(0), fmt.Errorf("Can't peek next rune: %v", err)
+	}
 	return r, nil
 }
 
@@ -175,7 +180,7 @@ func (l *Lexer) AcceptsSequence(runes string) (bool, error) {
 	}
 	for accepted {
 		onStreak = true
-		accepted, err = l.Accepts(runes) 
+		accepted, err = l.Accepts(runes)
 		if err != nil {
 			return false, fmt.Errorf("Failed to run sequence acceptor: %v", err)
 		}
@@ -195,6 +200,7 @@ func (l *Lexer) CreateToken(t Token) (*ScannedToken, error) {
 		Type: t,
 		Text: l.Text[l.Start:l.CurrentLocator.Position],
 	}
+	l.Start = l.CurrentLocator.Position
 	return tk, nil
 }
 
@@ -203,8 +209,8 @@ func (l *Lexer) TokenError(format string, args ...interface{}) (*ScannedToken, e
 		return nil, fmt.Errorf("Can't generate token error from lexer: lexer is nil")
 	}
 	return &ScannedToken{
-		Type: TOKEN_ERROR, 
-		Text: fmt.Sprintf(format, args...),	
+		Type: TOKEN_ERROR,
+		Text: fmt.Sprintf(format, args...),
 	}, nil
 }
 
@@ -242,7 +248,7 @@ func (l *Lexer) GetNumberToken() (*ScannedToken, error) {
 	l.AcceptsSequence(digits)
 	l.Accepts(".")
 	l.AcceptsSequence(digits)
-	
+
 	ok, err := l.Accepts("eE")
 	if err != nil {
 		return nil, fmt.Errorf("Can't get number from lexer: %v", err)
@@ -318,14 +324,14 @@ func (l *Lexer) ScanToken() (*ScannedToken, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed to scan token: %v", err)
 			}
-		case r == '?': 
+		case r == '?':
 			tk, err := l.GetNameToken(TOKEN_VARIABLE_NAME)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to scan token: %v", err)
 			}
 			return tk, nil
 		case r == ':':
-			tk, err := l.GetNameToken(TOKEN_CATEGORY_NAME) 
+			tk, err := l.GetNameToken(TOKEN_CATEGORY_NAME)
 			if err != nil {
 				return nil, fmt.Errorf("Failed to scan token: %v", err)
 			}
@@ -343,7 +349,7 @@ func (l *Lexer) ScanToken() (*ScannedToken, error) {
 			}
 			return tk, err
 		default:
-			return l.TokenError("Unhandle token in PDDL: %c", r)
+			return l.TokenError("Unhandled token in PDDL: %c", r)
 		}
 	}
 }

@@ -3,8 +3,6 @@ package common
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path"
 )
 
 type StringSlice []string
@@ -33,20 +31,4 @@ func LoadFile(filename string) (string, error) {
 		return "", err
 	}
 	return string(data), nil
-}
-
-func GetRootPath() string {
-	rootPath, exists := os.LookupEnv("ROOT_PATH")
-	if !exists {
-		fmt.Fprintf(os.Stderr, "ROOT_PATH environment variable is not defined")
-		os.Exit(1)
-	}
-	return rootPath
-}
-
-func JoinRootPathIfNotAbsolute(in string) string {
-	if path.IsAbs(in) {
-		return in
-	}
-	return path.Join(GetRootPath(), in)
 }
