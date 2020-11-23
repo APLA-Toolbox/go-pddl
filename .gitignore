@@ -7,3 +7,4 @@ docker/volumes/*
 data/*
 !data/.gitkeep
 src/tmp/*
+tmp/*

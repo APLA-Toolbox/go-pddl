@@ -19,15 +19,24 @@ func Start() (*Pddl, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to instantiate configuration: %v", err)
 	}
-	parser, err := parser.NewParser(conf)
+	fmt.Println("Starting go-pddl... (v " + conf.Version + ", started at " + time.Now().String())
+
+	// Parser Creation
+	parser := parser.NewParser()
+	err = parser.RegisterDomain(conf)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to build parser: %v", err)
+		return nil, err
 	}
+	err = parser.RegisterProblem(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Planner Creation
 	planner, err := planner.NewPlanner(conf)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to build planner: %v", err)
 	}
-	fmt.Println("Starting go-pddl... (v" + conf.Version + ", started at " + time.Now().String())
 
 	return &Pddl{
 		Parser:  parser,
