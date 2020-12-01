@@ -15,13 +15,13 @@ func main() {
 	}
 
 	// Parse
-	errPddl := pddl.Parser.ParseDomain()
+	d, errPddl := pddl.Parser.ParseDomain()
 	if errPddl != nil {
 		fmt.Println(errPddl.ToError())
 		return
 	}
 	fmt.Println("Domain successfully parsed...")
-	errPddl = pddl.Parser.ParseProblem()
+	pb, errPddl := pddl.Parser.ParseProblem()
 	if errPddl != nil {
 		fmt.Println(errPddl.ToError())
 		panic("Failed to parse problem")
@@ -32,13 +32,16 @@ func main() {
 		fmt.Printf("\n#################################################################")
 		fmt.Printf("\n####################### D O M A I N #############################")
 		fmt.Printf("\n#################################################################\n\n")
-		pddl.Parser.Domain.PrintDomain(os.Stdout)
+		d.PrintDomain(os.Stdout)
 		fmt.Printf("\n#################################################################")
 		fmt.Printf("\n###################### P R O B L E M ############################")
 		fmt.Printf("\n#################################################################\n\n")
-		pddl.Parser.Problem.PrintProblem(os.Stdout)
+		pb.PrintProblem(os.Stdout)
 	}
 
 	// Plan
-	//...
+	err = pddl.RegisterPlanner(d, pb)
+	if err != nil {
+		panic("Exit failure")
+	}
 }

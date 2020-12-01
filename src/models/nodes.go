@@ -15,7 +15,6 @@ var (
 
 type Formula interface {
 	Print(io.Writer, string)
-	Check(defs, *errors)
 }
 
 type Node struct {

@@ -1,11 +1,8 @@
 package planner
 
-import "github.com/guilyx/go-pddl/src/config"
+import "github.com/guilyx/go-pddl/src/models"
 
-type Planner struct {
-	Configuration *config.Config
-}
-
-func NewPlanner(config *config.Config) (*Planner, error) {
-	return &Planner{Configuration: config}, nil
+type Planner interface {
+	Initialize() (interface{}, error)
+	Search() (models.Plan, error)
 }

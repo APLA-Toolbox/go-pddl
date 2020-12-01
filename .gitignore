@@ -8,3 +8,4 @@ data/*
 !data/.gitkeep
 src/tmp/*
 tmp/*
+src/models/checking.go
