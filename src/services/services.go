@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/guilyx/go-pddl/src/config"
-	"github.com/guilyx/go-pddl/src/models"
 	"github.com/guilyx/go-pddl/src/parser"
 	"github.com/guilyx/go-pddl/src/planner"
 )
@@ -15,20 +14,20 @@ type Pddl struct {
 	Planner *planner.Planner
 }
 
-func (p *Pddl) RegisterPlanner(d *models.Domain, pb *models.Problem) error {
-	var conf *config.Config
-	if p.Parser.DomainToolbox != nil {
-		conf = p.Parser.DomainToolbox.Configuration
-	} else if p.Parser.ProblemToolbox != nil {
-		conf = p.Parser.ProblemToolbox.Configuration
-	}
-	planner, err := planner.NewPlanner(conf, d, pb)
-	if err != nil {
-		return fmt.Errorf("Failed to build planner: %v", err)
-	}
-	p.Planner = planner
-	return nil
-}
+// func (p *Pddl) RegisterPlanner(d *models.Domain, pb *models.Problem) error {
+// 	var conf *config.Config
+// 	if p.Parser.DomainToolbox != nil {
+// 		conf = p.Parser.DomainToolbox.Configuration
+// 	} else if p.Parser.ProblemToolbox != nil {
+// 		conf = p.Parser.ProblemToolbox.Configuration
+// 	}
+// 	planner, err := planner.NewPlanner(conf, d, pb)
+// 	if err != nil {
+// 		return fmt.Errorf("Failed to build planner: %v", err)
+// 	}
+// 	p.Planner = planner
+// 	return nil
+// }
 
 func Start() (*Pddl, error) {
 	conf, err := config.NewConfig()
@@ -49,6 +48,6 @@ func Start() (*Pddl, error) {
 	}
 
 	return &Pddl{
-		Parser:  parser,
+		Parser: parser,
 	}, nil
 }

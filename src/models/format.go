@@ -2,28 +2,28 @@ package models
 
 import (
 	"fmt"
-	"io"
 )
 
-func printReqsDef(w io.Writer, reqs []*Name) {
+func toStringReqs(reqs []*Name) string {
 	if len(reqs) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:requirements\n", Indent(1))
+	s := fmt.Sprintf("%s(:requirements\n", Indent(1))
 	for i, r := range reqs {
-		s := r.Name
+		sTemp := r.Name
 		if i == len(reqs)-1 {
-			s += ")"
+			sTemp += ")"
 		}
-		fmt.Fprintln(w, Indent(2), s)
+		s += fmt.Sprintf("%s %s\n", Indent(2), s)
 	}
+	return s
 }
 
-func printTypesDef(w io.Writer, ts []*Type) {
+func toStringTypesDef(ts []*Type) string {
 	if len(ts) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:types", Indent(1))
+	s := fmt.Sprintf("%s(:types", Indent(1))
 	ids := []*TypedEntry{}
 	for _, t := range ts {
 		if t.TypedEntry.Name.Location.Line == 0 {
@@ -32,139 +32,122 @@ func printTypesDef(w io.Writer, ts []*Type) {
 		}
 		ids = append(ids, t.TypedEntry)
 	}
-	printTypedNames(w, "\n"+Indent(2), ids)
-	fmt.Fprintln(w, ")")
+	s += toStringTypedNames("\n"+Indent(2), ids)
+	s += ")\n"
+	return s
 }
 
-// PrintConstsDef prints a constant definition with the given definition name
-// (should be either :constants or :objects).
-func printConstsDef(w io.Writer, def string, cs []*TypedEntry) {
+func toStringConsts(def string, cs []*TypedEntry) string {
 	if len(cs) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(w, "%s(%s", Indent(1), def)
-	printTypedNames(w, "\n"+Indent(2), cs)
-	fmt.Fprintln(w, ")")
+	var s string
+	s += fmt.Sprintf("%s(%s", Indent(1), def)
+	s += toStringTypedNames("\n"+Indent(2), cs)
+	s += ")\n"
+	return s
 }
 
-func printPredsDef(w io.Writer, ps []*Predicate) {
+func toStringPredicates(ps []*Predicate) string {
+	var s string
 	if len(ps) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:predicates\n", Indent(1))
+	s += fmt.Sprintf("%s(:predicates\n", Indent(1))
 	for i, p := range ps {
 		if p.Name.Location.Line == 0 {
-			// Skip undefined implicit predicates like =.
 			continue
 		}
-		fmt.Fprintf(w, "%s(%s", Indent(2), p.Name.Name)
-		printTypedNames(w, " ", p.Parameters)
-		fmt.Fprint(w, ")")
+		s += fmt.Sprintf("%s(%s", Indent(2), p.Name.Name)
+		s += toStringTypedNames(" ", p.Parameters)
+		s += ")"
 		if i < len(ps)-1 {
-			fmt.Fprint(w, "\n")
+			s += "\n"
 		}
 	}
-	fmt.Fprintln(w, ")")
+	s += ")\n"
+	return s
 }
 
-func printFuncsDef(w io.Writer, fs []*Function) {
+func toStringFunctions(fs []*Function) string {
+	var s string
 	if len(fs) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:functions\n", Indent(1))
+	s += fmt.Sprintf("%s(:functions\n", Indent(1))
 	for i, f := range fs {
-		fmt.Fprintf(w, "%s(%s", Indent(2), f.Name.Name)
-		printTypedNames(w, " ", f.Params)
-		fmt.Fprint(w, ")")
+		s += fmt.Sprintf("%s(%s", Indent(2), f.Name.Name)
+		s += toStringTypedNames(" ", f.Params)
+		s += ")"
 		if len(f.Types) > 0 {
-			fmt.Fprint(w, " - ", typeString(f.Types))
+			s += fmt.Sprintf(" - %s\n", toStringType(f.Types))
 		}
 		if i < len(fs)-1 {
-			fmt.Fprint(w, "\n")
+			s += "\n"
 		}
 	}
-	fmt.Fprintln(w, ")")
+	s += fmt.Sprintf(")")
+	return s
 }
 
-func printAction(w io.Writer, act *Action) {
-	fmt.Fprintf(w, "%s(:action %s\n", Indent(1), act.Name.Name)
-	fmt.Fprintf(w, "%s:parameters (", Indent(2))
-	printTypedNames(w, "", act.Params)
-	fmt.Fprint(w, ")")
+func toStringAction(act *Action) string {
+	var s string
+	s += fmt.Sprintf("%s(:action %s\n", Indent(1), act.Name.Name)
+	s += fmt.Sprintf("%s:parameters (", Indent(2))
+	s += toStringTypedNames("", act.Params)
+	s += ")"
 	if act.Precondition != nil {
-		fmt.Fprint(w, "\n")
-		fmt.Fprintf(w, "%s:precondition\n", Indent(2))
-		act.Precondition.Print(w, Indent(3))
+		s += "\n"
+		s += fmt.Sprintf("%s:precondition\n", Indent(2))
+		s += act.Precondition.ToString(Indent(3))
 	}
 	if act.Effect != nil {
-		fmt.Fprint(w, "\n")
-		fmt.Fprintf(w, "%s:effect\n", Indent(2))
-		act.Effect.Print(w, Indent(3))
+		s += "\n"
+		s += fmt.Sprintf("%s:effect\n", Indent(2))
+		s += act.Effect.ToString(Indent(3))
 	}
-	fmt.Fprintln(w, ")")
+	s += ")\n"
+	return s
 }
 
-// DeclGroup is a group of declarators along with their type.
-type declGroup struct {
-	typ  string
-	ents []string
-}
-
-// DeclGroups implements sort.Interface, sorting the list of typed declarations by their type name.
-type declGroups []declGroup
-
-func (t declGroups) Len() int {
-	return len(t)
-}
-
-func (t declGroups) Less(i, j int) bool {
-	return t[i].typ < t[j].typ
-}
-
-func (t declGroups) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-// PrintTypedNames prints a slice of TypedNames. Adjacent items with the same type are
-// all printed in a group.  Each group is preceeded by the prefix.
-func printTypedNames(w io.Writer, prefix string, ns []*TypedEntry) {
+func toStringTypedNames(prefix string, ns []*TypedEntry) string {
+	var s string
 	if len(ns) == 0 {
-		return
+		return ""
 	}
-	tprev := typeString(ns[0].Types)
+	tprev := toStringType(ns[0].Types)
 	sep := prefix
 	for _, n := range ns {
-		tcur := typeString(n.Types)
+		tcur := toStringType(n.Types)
 		if tcur != tprev {
 			if tprev == "" {
 				// Should be impossible.
 				str, _ := n.Name.Location.ToString()
 				panic(str + ": untyped declarations in the middle of a typed list")
 			}
-			fmt.Fprintf(w, " - %s", tprev)
+			s += fmt.Sprintf(" - %s", tprev)
 			tprev = tcur
 			sep = prefix
 			if sep == "" {
 				sep = " "
 			}
 		}
-		fmt.Fprintf(w, "%s%s", sep, n.Name.Name)
+		s += fmt.Sprintf("%s%s", sep, n.Name.Name)
 		sep = " "
 	}
 	if tprev != "" {
-		fmt.Fprintf(w, " - %s", tprev)
+		s += fmt.Sprintf(" - %s", tprev)
 	}
+	return s
 }
 
-// TypeString returns the string representation of a type.
-func typeString(t []*TypeName) (str string) {
+func toStringType(t []*TypeName) string {
+	var str string
 	switch len(t) {
 	case 0:
 		break
 	case 1:
 		if t[0].Name.Location.Line == 0 {
-			// Use the empty string for undeclared
-			// implicit types (such as object).
 			break
 		}
 		str = t[0].Name.Name
@@ -175,5 +158,5 @@ func typeString(t []*TypeName) (str string) {
 		}
 		str += ")"
 	}
-	return
+	return str
 }

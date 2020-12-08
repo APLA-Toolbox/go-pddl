@@ -15,6 +15,7 @@ var (
 
 type Formula interface {
 	Print(io.Writer, string)
+	ToString(string) string
 }
 
 type Node struct {
@@ -141,7 +142,7 @@ func (n *ImplyNode) Print(w io.Writer, prefix string) {
 
 func (n *ForAllNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(forall (", prefix)
-	printTypedNames(w, "", n.QuantNode.Variables)
+	fmt.Fprintf(w, "%s", toStringTypedNames("", n.QuantNode.Variables))
 	fmt.Fprint(w, ")\n")
 	n.QuantNode.UnaryNode.Formula.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
@@ -149,7 +150,7 @@ func (n *ForAllNode) Print(w io.Writer, prefix string) {
 
 func (n *ExistsNode) Print(w io.Writer, prefix string) {
 	fmt.Fprintf(w, "%s(exists (", prefix)
-	printTypedNames(w, "", n.QuantNode.Variables)
+	fmt.Fprintf(w, "%s", toStringTypedNames("", n.QuantNode.Variables))
 	fmt.Fprint(w, ")\n")
 	n.QuantNode.UnaryNode.Formula.Print(w, prefix+Indent(1))
 	fmt.Fprint(w, ")")
@@ -185,4 +186,116 @@ func (h *FunctionInit) Print(w io.Writer) {
 		fmt.Fprintf(w, " %s", t.Name.Name)
 	}
 	fmt.Fprint(w, ")")
+}
+
+
+
+
+func (lit *LiteralNode) ToString(prefix string) string {
+	var s string
+	if lit.Negative {
+		s += fmt.Sprintf("%s(not ", prefix)
+		prefix = ""
+	}
+	s += fmt.Sprintf("%s(", prefix)
+	s += lit.Predicate.Name
+	for _, t := range lit.Terms {
+		s += fmt.Sprintf(" %s", t.Name.Name)
+	}
+	s += ")"
+	if lit.Negative {
+		s += ")"
+	}
+	return s
+}
+
+func (n *AndNode) ToString(prefix string) string {
+	var s string
+	s += fmt.Sprintf("%s(and", prefix)
+	for _, f := range n.MultiNode.Formula {
+		s += "\n"
+		s += f.ToString(prefix+Indent(1))
+	}
+	s += ")"
+	return s
+}
+
+func (n *OrNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(or", prefix)
+	for _, f := range n.MultiNode.Formula {
+		s += "\n"
+		s += f.ToString(prefix+Indent(1))
+	}
+	s += ")"
+	return s
+}
+
+func (n *NotNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(not\n", prefix)
+	s += n.UnaryNode.Formula.ToString(prefix+Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *ImplyNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(imply\n", prefix)
+	s += n.BinaryNode.Left.ToString(prefix+Indent(1))
+	s += "\n"
+	s += n.BinaryNode.Right.ToString(prefix+Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *ForAllNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(forall (", prefix)
+	s += toStringTypedNames("", n.QuantNode.Variables)
+	s += ")\n"
+	s += n.QuantNode.UnaryNode.Formula.ToString(prefix+Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *ExistsNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(exists (", prefix)
+	s += toStringTypedNames("", n.QuantNode.Variables)
+	s += ")\n"
+	s += n.QuantNode.UnaryNode.Formula.ToString(prefix+Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *WhenNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(when\n", prefix)
+	s += n.Condition.ToString(prefix+Indent(1))
+	s += "\n"
+	s += n.UnaryNode.Formula.ToString(prefix+Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *AssignNode) ToString(prefix string) string {
+	s := fmt.Sprintf( "%s(%s ", prefix, n.Operation.Name)
+	s += n.AssignedTo.ToString()
+	if n.IsNumber {
+		s += fmt.Sprintf(" %s", n.Number)
+	} else {
+		s += " "
+		s += n.FunctionInit.ToString()
+	}
+	s += ")"
+	return s
+}
+
+func (h *FunctionInit) ToString() string {
+	var s string
+	if len(h.Terms) == 0 {
+		s += fmt.Sprintf("(%s)", h.Name.Name)
+		return s
+	}
+	s += fmt.Sprintf("(%s", h.Name.Name)
+	for _, t := range h.Terms {
+		s += fmt.Sprintf(" %s", t.Name.Name)
+	}
+	s += ")"
+	return s
 }

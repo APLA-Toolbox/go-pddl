@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/guilyx/go-pddl/src/services"
 )
@@ -32,16 +31,16 @@ func main() {
 		fmt.Printf("\n#################################################################")
 		fmt.Printf("\n####################### D O M A I N #############################")
 		fmt.Printf("\n#################################################################\n\n")
-		d.PrintDomain(os.Stdout)
+		d.PrintDomain()
 		fmt.Printf("\n#################################################################")
 		fmt.Printf("\n###################### P R O B L E M ############################")
 		fmt.Printf("\n#################################################################\n\n")
-		pb.PrintProblem(os.Stdout)
+		pb.PrintProblem()
 	}
 
 	// Plan
-	err = pddl.RegisterPlanner(d, pb)
-	if err != nil {
-		panic("Exit failure")
-	}
+	// err = pddl.RegisterPlanner(d, pb)
+	// if err != nil {
+	// 	panic("Exit failure")
+	// }
 }
