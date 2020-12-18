@@ -30,3 +30,20 @@ func (p *Problem) PrintProblem() {
 	s += ")\n)\n"
 	fmt.Println(s)
 }
+
+func (p *Problem) ToJSONProblem() {
+	var s string
+	s += "{"
+	s += fmt.Sprintf("\"define\":{\"problem\":\"%s\",\"domain\":\"%s\"},", p.Name.Name, p.Domain.Name)
+	s += toJSONReqs(p.Requirements)
+	s += toJSONConsts("objects", p.Objects)
+	s += "\"init\":{"
+	for _, f := range p.InitialConditions {
+		s += f.ToJSON("")
+	}
+	s += "}"
+	s += "\"goal\":{"
+	s += p.Goal.ToJSON("")
+	s += "}}"
+	fmt.Println(s)
+}

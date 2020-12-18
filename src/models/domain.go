@@ -31,3 +31,22 @@ func (d *Domain) PrintDomain() {
 	s += ")\n"
 	fmt.Println(s)
 }
+
+func (d *Domain) ToJSONDomain() {
+	var s string
+	if d == nil {
+		panic("Domain is nil, can't convert to json")
+	}
+	s += "{"
+	s += fmt.Sprintf("\"define\":{\"domain\":\"%s\"},", d.Name.Name)
+	s += toJSONReqs(d.Requirements)
+	s += toJSONTypesDef(d.Types)
+	s += toJSONConsts("constants", d.Constants)
+	s += toJSONPredicates(d.Predicates)
+	s += toJSONFunctions(d.Functions)
+	for _, act := range d.Actions {
+		s += toJSONAction(act)
+	}
+	s += "}"
+	fmt.Println(s)
+}

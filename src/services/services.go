@@ -6,12 +6,10 @@ import (
 
 	"github.com/guilyx/go-pddl/src/config"
 	"github.com/guilyx/go-pddl/src/parser"
-	"github.com/guilyx/go-pddl/src/planner"
 )
 
 type Pddl struct {
 	Parser  *parser.Parser
-	Planner *planner.Planner
 }
 
 // func (p *Pddl) RegisterPlanner(d *models.Domain, pb *models.Problem) error {

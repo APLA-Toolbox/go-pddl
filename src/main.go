@@ -27,16 +27,9 @@ func main() {
 	}
 	fmt.Println("Problem successfully parsed...")
 
-	if pddl.Parser.DomainToolbox.Configuration.PrintPddl {
-		fmt.Printf("\n#################################################################")
-		fmt.Printf("\n####################### D O M A I N #############################")
-		fmt.Printf("\n#################################################################\n\n")
-		d.PrintDomain()
-		fmt.Printf("\n#################################################################")
-		fmt.Printf("\n###################### P R O B L E M ############################")
-		fmt.Printf("\n#################################################################\n\n")
-		pb.PrintProblem()
-	}
+	d.ToJSONDomain()
+	fmt.Printf("\n\n")
+	pb.ToJSONProblem()
 
 	// Plan
 	// err = pddl.RegisterPlanner(d, pb)
