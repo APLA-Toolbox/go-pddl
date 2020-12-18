@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"io"
 )
 
 type Domain struct {
@@ -15,18 +14,39 @@ type Domain struct {
 	Actions      []*Action
 }
 
-func (d *Domain) PrintDomain(w io.Writer) {
+func (d *Domain) PrintDomain() {
+	var s string
 	if d == nil {
 		panic("Domain is nil, can't print")
 	}
-	fmt.Fprintf(w, "(define (domain %s)\n", d.Name.Name)
-	printReqsDef(w, d.Requirements)
-	printTypesDef(w, d.Types)
-	printConstsDef(w, ":constants", d.Constants)
-	printPredsDef(w, d.Predicates)
-	printFuncsDef(w, d.Functions)
+	s += fmt.Sprintf("(define (domain %s)\n", d.Name.Name)
+	s += toStringReqs(d.Requirements)
+	s += toStringTypesDef(d.Types)
+	s += toStringConsts(":constants", d.Constants)
+	s += toStringPredicates(d.Predicates)
+	s += toStringFunctions(d.Functions)
 	for _, act := range d.Actions {
-		printAction(w, act)
+		s += toStringAction(act)
 	}
-	fmt.Fprintln(w, ")")
+	s += ")\n"
+	fmt.Println(s)
+}
+
+func (d *Domain) ToJSONDomain() {
+	var s string
+	if d == nil {
+		panic("Domain is nil, can't convert to json")
+	}
+	s += "{"
+	s += fmt.Sprintf("\"define\":{\"domain\":\"%s\"},", d.Name.Name)
+	s += toJSONReqs(d.Requirements)
+	s += toJSONTypesDef(d.Types)
+	s += toJSONConsts("constants", d.Constants)
+	s += toJSONPredicates(d.Predicates)
+	s += toJSONFunctions(d.Functions)
+	for _, act := range d.Actions {
+		s += toJSONAction(act)
+	}
+	s += "}"
+	fmt.Println(s)
 }

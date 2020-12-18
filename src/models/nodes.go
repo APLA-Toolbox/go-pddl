@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"io"
 )
 
 var (
@@ -14,8 +13,8 @@ var (
 )
 
 type Formula interface {
-	Print(io.Writer, string)
-	Check(defs, *errors)
+	ToString(string) string
+	ToJSON(string) string
 }
 
 type Node struct {
@@ -92,98 +91,227 @@ type AssignNode struct {
 	IsInit       bool
 }
 
-func (lit *LiteralNode) Print(w io.Writer, prefix string) {
+func (lit *LiteralNode) ToString(prefix string) string {
+	var s string
 	if lit.Negative {
-		fmt.Fprintf(w, "%s(not ", prefix)
+		s += fmt.Sprintf("%s(not ", prefix)
 		prefix = ""
 	}
-	fmt.Fprintf(w, "%s(", prefix)
-	fmt.Fprint(w, lit.Predicate.Name)
+	s += fmt.Sprintf("%s(", prefix)
+	s += lit.Predicate.Name
 	for _, t := range lit.Terms {
-		fmt.Fprintf(w, " %s", t.Name.Name)
+		s += fmt.Sprintf(" %s", t.Name.Name)
 	}
-	fmt.Fprint(w, ")")
+	s += ")"
 	if lit.Negative {
-		fmt.Fprint(w, ")")
+		s += ")"
 	}
+	return s
 }
 
-func (n *AndNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(and", prefix)
+func (lit *LiteralNode) ToJSON(prefix string) string {
+	var s string
+	if lit.Negative {
+		s += "\"not\":{"
+	}
+	s += "\"" + lit.Predicate.Name + "\"" + ":{"
+	for i, t := range lit.Terms {
+		if i == len(lit.Terms) - 1 {
+			s += fmt.Sprintf("\"%s\"", t.Name.Name)
+		} else {
+			s += fmt.Sprintf("\"%s\",", t.Name.Name)
+		}
+	}
+	s += "},"
+	if lit.Negative {
+		s += "},"
+	}
+	return s
+}
+
+func (n *AndNode) ToString(prefix string) string {
+	var s string
+	s += fmt.Sprintf("%s(and", prefix)
 	for _, f := range n.MultiNode.Formula {
-		fmt.Fprint(w, "\n")
-		f.Print(w, prefix+Indent(1))
+		s += "\n"
+		s += f.ToString(prefix + Indent(1))
 	}
-	fmt.Fprint(w, ")")
+	s += ")"
+	return s
 }
 
-func (n *OrNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(or", prefix)
+func (n *AndNode) ToJSON(prefix string) string {
+	var s string
+	s += "\"and\":{"
+	for i, f := range n.MultiNode.Formula {
+		if i == len(n.MultiNode.Formula) - 1 {
+			s += f.ToJSON("")
+		} else {
+			s += f.ToJSON("") + ","
+		}
+		
+	}
+	s += "}"
+	return s
+}
+
+func (n *OrNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(or", prefix)
 	for _, f := range n.MultiNode.Formula {
-		fmt.Fprint(w, "\n")
-		f.Print(w, prefix+Indent(1))
+		s += "\n"
+		s += f.ToString(prefix + Indent(1))
 	}
-	fmt.Fprint(w, ")")
+	s += ")"
+	return s
 }
 
-func (n *NotNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(not\n", prefix)
-	n.UnaryNode.Formula.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, ")")
+func (n *OrNode) ToJSON(prefix string) string {
+	s := "\"or\":{"
+	for _, f := range n.MultiNode.Formula {
+		s += "\"" + f.ToString("") + "\","
+	}
+	s += "}"
+	return s
 }
 
-func (n *ImplyNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(imply\n", prefix)
-	n.BinaryNode.Left.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, "\n")
-	n.BinaryNode.Right.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, ")")
+func (n *NotNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(not", prefix)
+	s += n.UnaryNode.Formula.ToString(prefix)
+	s += ")"
+	return s
 }
 
-func (n *ForAllNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(forall (", prefix)
-	printTypedNames(w, "", n.QuantNode.Variables)
-	fmt.Fprint(w, ")\n")
-	n.QuantNode.UnaryNode.Formula.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, ")")
+func (n *NotNode) ToJSON(prefix string) string {
+	s := "\"not\":{"
+	s += n.UnaryNode.Formula.ToJSON("")
+	s += "}"
+	return s
 }
 
-func (n *ExistsNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(exists (", prefix)
-	printTypedNames(w, "", n.QuantNode.Variables)
-	fmt.Fprint(w, ")\n")
-	n.QuantNode.UnaryNode.Formula.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, ")")
+func (n *ImplyNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(imply\n", prefix)
+	s += n.BinaryNode.Left.ToString(prefix + Indent(1))
+	s += "\n"
+	s += n.BinaryNode.Right.ToString(prefix + Indent(1))
+	s += ")"
+	return s
 }
 
-func (n *WhenNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(when\n", prefix)
-	n.Condition.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, "\n")
-	n.UnaryNode.Formula.Print(w, prefix+Indent(1))
-	fmt.Fprint(w, ")")
+func (n *ForAllNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(forall (", prefix)
+	s += toStringTypedNames("", n.QuantNode.Variables)
+	s += ")\n"
+	s += n.QuantNode.UnaryNode.Formula.ToString(prefix + Indent(1))
+	s += ")"
+	return s
 }
 
-func (n *AssignNode) Print(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s(%s ", prefix, n.Operation.Name)
-	n.AssignedTo.Print(w)
+func (n *ExistsNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(exists (", prefix)
+	s += toStringTypedNames("", n.QuantNode.Variables)
+	s += ")\n"
+	s += n.QuantNode.UnaryNode.Formula.ToString(prefix + Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *ImplyNode) ToJSON(prefix string) string {
+	s := "\"imply\":{"
+	s += n.BinaryNode.Left.ToJSON("")
+	s += "\n"
+	s += n.BinaryNode.Right.ToJSON("")
+	s += "},"
+	return s
+}
+
+func (n *ForAllNode) ToJSON(prefix string) string {
+	s := "\"forall\":{"
+	s += "\"quant\":{" + toJSONTypedNames("", n.QuantNode.Variables) + "}\","
+	s += "\"effect\":{"
+	s += n.QuantNode.UnaryNode.Formula.ToJSON("")
+	s += "}}"
+	return s
+}
+
+func (n *ExistsNode) ToJSON(prefix string) string {
+	s := "\"exists\":{"
+	s += toJSONTypedNames("", n.QuantNode.Variables)
+	s += "}"
+	s += n.QuantNode.UnaryNode.Formula.ToJSON("")
+	s += "},"
+	return s
+}
+
+func (n *WhenNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(when\n", prefix)
+	s += n.Condition.ToString(prefix + Indent(1))
+	s += "\n"
+	s += n.UnaryNode.Formula.ToString(prefix + Indent(1))
+	s += ")"
+	return s
+}
+
+func (n *WhenNode) ToJSON(prefix string) string {
+	s := "\"when\":{"
+	s += n.Condition.ToJSON("")
+	s += n.UnaryNode.Formula.ToJSON("")
+	s += "}"
+	return s
+}
+
+func (n *AssignNode) ToString(prefix string) string {
+	s := fmt.Sprintf("%s(%s ", prefix, n.Operation.Name)
+	s += n.AssignedTo.ToString()
 	if n.IsNumber {
-		fmt.Fprintf(w, " %s", n.Number)
+		s += fmt.Sprintf(" %s", n.Number)
 	} else {
-		fmt.Fprint(w, " ")
-		n.FunctionInit.Print(w)
+		s += " "
+		s += n.FunctionInit.ToString()
 	}
-	fmt.Fprintf(w, ")")
+	s += ")"
+	return s
 }
 
-func (h *FunctionInit) Print(w io.Writer) {
+func (n *AssignNode) ToJSON(prefix string) string {
+	s := "\"" + n.Operation.Name + "\":{"
+	s += n.AssignedTo.ToJSON()
+	if n.IsNumber {
+		s += "\"" + n.Number + "\""
+	} else {
+		s += n.FunctionInit.ToJSON()
+	}
+	s += "}"
+	return s
+}
+
+func (h *FunctionInit) ToString() string {
+	var s string
 	if len(h.Terms) == 0 {
-		fmt.Fprintf(w, "(%s)", h.Name.Name)
-		return
+		s += fmt.Sprintf("(%s)", h.Name.Name)
+		return s
 	}
-	fmt.Fprintf(w, "(%s", h.Name.Name)
+	s += fmt.Sprintf("(%s", h.Name.Name)
 	for _, t := range h.Terms {
-		fmt.Fprintf(w, " %s", t.Name.Name)
+		s += fmt.Sprintf(" %s", t.Name.Name)
 	}
-	fmt.Fprint(w, ")")
+	s += ")"
+	return s
+}
+
+func (h *FunctionInit) ToJSON() string {
+	var s string
+	if len(h.Terms) == 0 {
+		s += fmt.Sprintf("\"%s\":{},", h.Name.Name)
+		return s
+	}
+	s += fmt.Sprintf("\"%s\":{", h.Name.Name)
+	for i := range h.Terms {
+		if i == len(h.Terms) - 1 {
+			s += fmt.Sprintf("%s", h.Terms[i].Name.Name)
+		} else {
+			s += fmt.Sprintf("%s,", h.Terms[i].Name.Name)
+		}
+	}
+	s += "},"
+	return s
 }

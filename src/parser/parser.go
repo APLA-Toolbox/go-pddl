@@ -6,12 +6,9 @@ import (
 	"github.com/guilyx/go-pddl/src/common"
 	"github.com/guilyx/go-pddl/src/config"
 	"github.com/guilyx/go-pddl/src/lexer"
-	"github.com/guilyx/go-pddl/src/models"
 )
 
 type Parser struct {
-	Domain         *models.Domain
-	Problem        *models.Problem
 	DomainToolbox  *ParserToolbox
 	ProblemToolbox *ParserToolbox
 }

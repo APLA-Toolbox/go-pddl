@@ -2,28 +2,45 @@ package models
 
 import (
 	"fmt"
-	"io"
 )
 
-func printReqsDef(w io.Writer, reqs []*Name) {
+func toStringReqs(reqs []*Name) string {
 	if len(reqs) == 0 {
-		return
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:requirements\n", Indent(1))
+	s := fmt.Sprintf("%s(:requirements\n", Indent(1))
 	for i, r := range reqs {
-		s := r.Name
+		sTemp := r.Name
 		if i == len(reqs)-1 {
-			s += ")"
+			sTemp += ")"
 		}
-		fmt.Fprintln(w, Indent(2), s)
+		s += fmt.Sprintf("%s %s\n", Indent(2), sTemp)
 	}
+	return s
 }
 
-func printTypesDef(w io.Writer, ts []*Type) {
-	if len(ts) == 0 {
-		return
+func toJSONReqs(reqs []*Name) string {
+	if len(reqs) == 0 {
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:types", Indent(1))
+	s := "\"requirements\":{"
+	for i, r := range reqs {
+		sTemp := "\"" + r.Name + "\""
+		if i == len(reqs) - 1 {
+			sTemp += "},"
+		} else {
+			sTemp += ","
+		}
+		s += sTemp
+	}
+	return s
+}
+
+func toStringTypesDef(ts []*Type) string {
+	if len(ts) == 0 {
+		return ""
+	}
+	s := fmt.Sprintf("%s(:types", Indent(1))
 	ids := []*TypedEntry{}
 	for _, t := range ts {
 		if t.TypedEntry.Name.Location.Line == 0 {
@@ -32,139 +49,248 @@ func printTypesDef(w io.Writer, ts []*Type) {
 		}
 		ids = append(ids, t.TypedEntry)
 	}
-	printTypedNames(w, "\n"+Indent(2), ids)
-	fmt.Fprintln(w, ")")
+	s += toStringTypedNames("\n"+Indent(2), ids)
+	s += ")\n"
+	return s
 }
 
-// PrintConstsDef prints a constant definition with the given definition name
-// (should be either :constants or :objects).
-func printConstsDef(w io.Writer, def string, cs []*TypedEntry) {
-	if len(cs) == 0 {
-		return
+func toJSONTypesDef(ts []*Type) string {
+	if len(ts) == 0 {
+		return ""
 	}
-	fmt.Fprintf(w, "%s(%s", Indent(1), def)
-	printTypedNames(w, "\n"+Indent(2), cs)
-	fmt.Fprintln(w, ")")
-}
-
-func printPredsDef(w io.Writer, ps []*Predicate) {
-	if len(ps) == 0 {
-		return
-	}
-	fmt.Fprintf(w, "%s(:predicates\n", Indent(1))
-	for i, p := range ps {
-		if p.Name.Location.Line == 0 {
-			// Skip undefined implicit predicates like =.
+	s := "\"types\":{"
+	ids := []*TypedEntry{}
+	for _, t := range ts {
+		if t.TypedEntry.Name.Location.Line == 0 {
+			// Skip undeclared implicit types like object.
 			continue
 		}
-		fmt.Fprintf(w, "%s(%s", Indent(2), p.Name.Name)
-		printTypedNames(w, " ", p.Parameters)
-		fmt.Fprint(w, ")")
-		if i < len(ps)-1 {
-			fmt.Fprint(w, "\n")
-		}
+		ids = append(ids, t.TypedEntry)
 	}
-	fmt.Fprintln(w, ")")
+	s += toJSONTypedNames("", ids)
+	s += "},"
+	return s
 }
 
-func printFuncsDef(w io.Writer, fs []*Function) {
-	if len(fs) == 0 {
-		return
+func toStringConsts(def string, cs []*TypedEntry) string {
+	if len(cs) == 0 {
+		return ""
 	}
-	fmt.Fprintf(w, "%s(:functions\n", Indent(1))
+	var s string
+	s += fmt.Sprintf("%s(%s", Indent(1), def)
+	s += toStringTypedNames("\n"+Indent(2), cs)
+	s += ")\n"
+	return s
+}
+
+func toJSONConsts(def string, cs []*TypedEntry) string {
+	if len(cs) == 0 {
+		return ""
+	}
+	var s string
+	s += fmt.Sprintf("\"%s\":{", def)
+	s += toJSONTypedNames("", cs)
+	s += "},"
+	return s
+}
+
+
+func toStringPredicates(ps []*Predicate) string {
+	var s string
+	if len(ps) == 0 {
+		return ""
+	}
+	s += fmt.Sprintf("%s(:predicates\n", Indent(1))
+	for i, p := range ps {
+		if p.Name.Location.Line == 0 {
+			continue
+		}
+		s += fmt.Sprintf("%s(%s", Indent(2), p.Name.Name)
+		s += toStringTypedNames(" ", p.Parameters)
+		s += ")"
+		if i < len(ps)-1 {
+			s += "\n"
+		}
+	}
+	s += ")\n"
+	return s
+}
+
+func toJSONPredicates(ps []*Predicate) string {
+	var s string
+	if len(ps) == 0 {
+		return ""
+	}
+	s += "\"predicates\":{"
+	for i, p := range ps {
+		if p.Name.Location.Line == 0 {
+			continue
+		}
+		s += fmt.Sprintf("\"%s\":{", p.Name.Name)
+		s += toJSONTypedNames("", p.Parameters)
+		if i == len(ps) - 1 {
+			s += "}"
+		} else {
+			s += "},"
+		}	
+	}
+	s += "},"
+	return s
+}
+
+func toStringFunctions(fs []*Function) string {
+	var s string
+	if len(fs) == 0 {
+		return ""
+	}
+	s += fmt.Sprintf("%s(:functions\n", Indent(1))
 	for i, f := range fs {
-		fmt.Fprintf(w, "%s(%s", Indent(2), f.Name.Name)
-		printTypedNames(w, " ", f.Params)
-		fmt.Fprint(w, ")")
+		s += fmt.Sprintf("%s(%s", Indent(2), f.Name.Name)
+		s += toStringTypedNames(" ", f.Params)
+		s += ")"
 		if len(f.Types) > 0 {
-			fmt.Fprint(w, " - ", typeString(f.Types))
+			s += fmt.Sprintf(" - %s\n", toStringType(f.Types))
 		}
 		if i < len(fs)-1 {
-			fmt.Fprint(w, "\n")
+			s += "\n"
 		}
 	}
-	fmt.Fprintln(w, ")")
+	s += fmt.Sprintf(")")
+	return s
 }
 
-func printAction(w io.Writer, act *Action) {
-	fmt.Fprintf(w, "%s(:action %s\n", Indent(1), act.Name.Name)
-	fmt.Fprintf(w, "%s:parameters (", Indent(2))
-	printTypedNames(w, "", act.Params)
-	fmt.Fprint(w, ")")
+func toJSONFunctions(fs []*Function) string {
+	var s string
+	if len(fs) == 0 {
+		return ""
+	}
+	s += "\"functions\":{"
+	for _, f := range fs {
+		s += fmt.Sprintf("\"%s\":", f.Name.Name)
+		s += toJSONTypedNames("", f.Params)
+		s += "},"
+		if len(f.Types) > 0 {
+			s += fmt.Sprintf(" - %s", toStringType(f.Types))
+		}
+	}
+	s += fmt.Sprintf("},")
+	return s
+}
+
+func toStringAction(act *Action) string {
+	var s string
+	s += fmt.Sprintf("%s(:action %s\n", Indent(1), act.Name.Name)
+	s += fmt.Sprintf("%s:parameters (", Indent(2))
+	s += toStringTypedNames("", act.Params)
+	s += ")"
 	if act.Precondition != nil {
-		fmt.Fprint(w, "\n")
-		fmt.Fprintf(w, "%s:precondition\n", Indent(2))
-		act.Precondition.Print(w, Indent(3))
+		s += "\n"
+		s += fmt.Sprintf("%s:precondition\n", Indent(2))
+		if _, ok := act.Precondition.(*NotNode); ok {
+			s += act.Precondition.ToString("")
+		} else {
+			s += act.Precondition.ToString(Indent(3))
+		}
 	}
 	if act.Effect != nil {
-		fmt.Fprint(w, "\n")
-		fmt.Fprintf(w, "%s:effect\n", Indent(2))
-		act.Effect.Print(w, Indent(3))
+		s += "\n"
+		s += fmt.Sprintf("%s:effect\n", Indent(2))
+		if _, ok := act.Effect.(*NotNode); ok {
+			s += act.Effect.ToString("")
+		} else {
+			s += act.Effect.ToString(Indent(3))
+		}
 	}
-	fmt.Fprintln(w, ")")
+	s += ")\n"
+	return s
 }
 
-// DeclGroup is a group of declarators along with their type.
-type declGroup struct {
-	typ  string
-	ents []string
+func toJSONAction(act *Action) string {
+	var s string
+	s += fmt.Sprintf("\"action\":{\"%s\":{", act.Name.Name)
+	s += "\"parameters\":{"
+	s += toJSONTypedNames("", act.Params)
+	s += "},"
+	if act.Precondition != nil {
+		s += "\"precondition\":{"
+		if _, ok := act.Precondition.(*NotNode); ok {
+			s += act.Precondition.ToJSON("")
+		} else {
+			s += act.Precondition.ToJSON("")
+		}
+	}
+	if act.Effect != nil {
+		s += "\"effect\":{"
+		s += act.Effect.ToJSON("")
+	}
+	s += "}"
+	return s
 }
 
-// DeclGroups implements sort.Interface, sorting the list of typed declarations by their type name.
-type declGroups []declGroup
-
-func (t declGroups) Len() int {
-	return len(t)
-}
-
-func (t declGroups) Less(i, j int) bool {
-	return t[i].typ < t[j].typ
-}
-
-func (t declGroups) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-// PrintTypedNames prints a slice of TypedNames. Adjacent items with the same type are
-// all printed in a group.  Each group is preceeded by the prefix.
-func printTypedNames(w io.Writer, prefix string, ns []*TypedEntry) {
+func toStringTypedNames(prefix string, ns []*TypedEntry) string {
+	var s string
 	if len(ns) == 0 {
-		return
+		return ""
 	}
-	tprev := typeString(ns[0].Types)
+	tprev := toStringType(ns[0].Types)
 	sep := prefix
 	for _, n := range ns {
-		tcur := typeString(n.Types)
+		tcur := toStringType(n.Types)
 		if tcur != tprev {
 			if tprev == "" {
 				// Should be impossible.
 				str, _ := n.Name.Location.ToString()
 				panic(str + ": untyped declarations in the middle of a typed list")
 			}
-			fmt.Fprintf(w, " - %s", tprev)
+			s += fmt.Sprintf(" - %s", tprev)
 			tprev = tcur
 			sep = prefix
 			if sep == "" {
 				sep = " "
 			}
 		}
-		fmt.Fprintf(w, "%s%s", sep, n.Name.Name)
+		s += fmt.Sprintf("%s%s", sep, n.Name.Name)
 		sep = " "
 	}
 	if tprev != "" {
-		fmt.Fprintf(w, " - %s", tprev)
+		s += fmt.Sprintf(" - %s", tprev)
 	}
+	return s
 }
 
-// TypeString returns the string representation of a type.
-func typeString(t []*TypeName) (str string) {
+func toJSONTypedNames(prefix string, ns []*TypedEntry) string {
+	var s string
+	if len(ns) == 0 {
+		return ""
+	}
+	tprev := toJSONType(ns[0].Types)
+	for i, n := range ns {
+		tcur := toJSONType(n.Types)
+		if tcur != tprev {
+			if tprev == "" {
+				// Should be impossible.
+				str, _ := n.Name.Location.ToString()
+				panic(str + ": untyped declarations in the middle of a typed list")
+			}
+			s += fmt.Sprintf(" - %s", tprev)
+			tprev = tcur
+		}
+		if i == len(ns) - 1 {
+			s += fmt.Sprintf("\"%s - %s\"", n.Name.Name, tcur)
+		} else {
+			s += fmt.Sprintf("\"%s - %s\",", n.Name.Name, tcur)
+		}
+	}
+	return s
+}
+
+func toStringType(t []*TypeName) string {
+	var str string
 	switch len(t) {
 	case 0:
 		break
 	case 1:
 		if t[0].Name.Location.Line == 0 {
-			// Use the empty string for undeclared
-			// implicit types (such as object).
 			break
 		}
 		str = t[0].Name.Name
@@ -175,5 +301,29 @@ func typeString(t []*TypeName) (str string) {
 		}
 		str += ")"
 	}
-	return
+	return str
+}
+
+func toJSONType(t []*TypeName) string {
+	var str string
+	switch len(t) {
+	case 0:
+		break
+	case 1:
+		if t[0].Name.Location.Line == 0 {
+			break
+		}
+		str = t[0].Name.Name
+	default:
+		str = "\"either\":{"
+		for i, n := range t {
+			if i == len(t) - 1 {
+				str += "\"" + n.Name.Name + "\""
+			} else {
+				str += "\"" + n.Name.Name + "\","
+			}
+		}
+		str += "},"
+	}
+	return str
 }
