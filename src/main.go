@@ -27,9 +27,9 @@ func main() {
 	}
 	fmt.Println("Problem successfully parsed...")
 
-	d.ToJSONDomain()
+	d.ToStringDomain()
 	fmt.Printf("\n\n")
-	pb.ToJSONProblem()
+	pb.ToStringProblem()
 
 	// Plan
 	// err = pddl.RegisterPlanner(d, pb)
